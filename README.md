@@ -1,4 +1,4 @@
-# ask-me-api
+# Ask Me API
 Ask Me is a platform for asking whatever things you liked based on the category. Scared to ask? Use the private ask mode to ask privately to someone expert or related
 
 ### API Documentation
