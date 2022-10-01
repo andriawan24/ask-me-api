@@ -1,0 +1,5 @@
+2022-10-01 11:53:39:5339 info: Server listening on port 8080
+2022-10-01 11:53:59:5359 info: POST /v1/api/auth/sign-up 400 177.902 ms - 164
+2022-10-01 11:54:18:5418 info: Server listening on port 8080
+2022-10-01 11:54:22:5422 info: Server listening on port 8080
+2022-10-01 11:54:24:5424 info: POST /v1/api/auth/sign-up 200 77.838 ms - 231
