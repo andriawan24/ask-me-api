@@ -11,4 +11,6 @@ module.exports = {
   projectDir: `${__dirname}/../`,
   baseUrl: process.env.BASE_URL,
   baseUrlImage: process.env.BASE_URL_IMG,
+  saltRound: 10,
+  secretKey: process.env.SECRET_KEY,
 };

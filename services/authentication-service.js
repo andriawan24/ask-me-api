@@ -1,8 +1,10 @@
 const path = require('path');
 const fs = require('fs');
 const { validationResult } = require('express-validator');
-const { projectDir, baseUrlImage } = require('../config');
+const bcrypt = require('bcrypt');
+const { projectDir, baseUrlImage, saltRound } = require('../config');
 const { query } = require('../utils/db-helper');
+const { generateToken } = require('../utils/token-helper');
 
 module.exports = {
   getUsers: async (req, res) => {
@@ -86,7 +88,9 @@ module.exports = {
         });
       }
 
-      await query('INSERT INTO users (name, email, password, image_url) VALUES (?, ?, ?, ?)', [name, email, password, imageUrl]);
+      const passwordHashed = await bcrypt.hashSync(password, saltRound);
+
+      await query('INSERT INTO users (name, email, password, image_url) VALUES (?, ?, ?, ?)', [name, email, passwordHashed, imageUrl]);
       const newUser = await query('SELECT * FROM users WHERE email = ?', [email]);
 
       if (newUser.length === 0) {
@@ -115,6 +119,92 @@ module.exports = {
       return res.status(500).json({
         status: false,
         message: `Failed to get users ${e.message}`,
+        data: null,
+      });
+    }
+  },
+  signIn: async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          status: false,
+          message: 'Failed to sign in',
+          data: errors.array(),
+        });
+      }
+
+      const userCheck = await query('SELECT * FROM users WHERE email = ?', [email]);
+      if (userCheck.length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: 'Email/password wrong',
+          data: null,
+        });
+      }
+
+      const passwordCheck = await bcrypt.compareSync(password, userCheck[0].password);
+      if (!passwordCheck) {
+        return res.status(400).json({
+          status: false,
+          message: 'Email/password wrong',
+          data: null,
+        });
+      }
+
+      const token = generateToken({
+        userID: userCheck[0].id,
+      });
+
+      return res.status(200).json({
+        status: true,
+        message: 'Success login',
+        data: {
+          access_token: token,
+        },
+      });
+    } catch (e) {
+      return res.status(500).json({
+        status: false,
+        message: `Failed to get users ${e.message}`,
+        data: null,
+      });
+    }
+  },
+  getCredential: async (req, res) => {
+    try {
+      const { userID } = req;
+
+      const users = await query('SELECT * FROM users WHERE id = ?', [userID]);
+
+      if (users.length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: 'Failed to get user',
+          data: null,
+        });
+      }
+
+      return res.status(200).json({
+        status: true,
+        message: 'Success to get user',
+        data: {
+          id: users[0].id,
+          name: users[0].name,
+          email: users[0].email,
+          phone_number: users[0].phone_number,
+          image_url: users[0].image_url,
+          points: users[0].points,
+          created_at: users[0].created_at,
+          updated_at: users[0].updated_at,
+        },
+      });
+    } catch (e) {
+      return res.status(500).json({
+        status: false,
+        message: `Failed to get user ${e.message}`,
         data: null,
       });
     }

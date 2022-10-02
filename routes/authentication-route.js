@@ -2,11 +2,44 @@ const express = require('express');
 const multer = require('multer');
 const os = require('os');
 const { checkSchema } = require('express-validator');
-const { insertUser } = require('../services/authentication-service');
+const { insertUser, signIn, getCredential } = require('../services/authentication-service');
+const { verifyToken } = require('../utils/token-helper');
 
 const router = express.Router();
 
 const upload = multer({ dest: os.tmpdir() });
+
+const authMiddleware = async (req, res, next) => {
+  const { authorization } = req.headers;
+  try {
+    const token = authorization.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({
+        status: false,
+        message: 'Unauthorized',
+        data: null,
+      });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        status: false,
+        message: 'Unauthorized',
+        data: null,
+      });
+    }
+
+    req.userID = decoded.data.userID;
+    return next();
+  } catch (e) {
+    return res.status(401).json({
+      status: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+};
 
 router.post(
   '/sign-up',
@@ -45,8 +78,9 @@ router.post(
       },
     },
   }),
-
   insertUser,
 );
+router.post('/sign-in', signIn);
+router.get('/me', authMiddleware, getCredential);
 
 module.exports = router;
