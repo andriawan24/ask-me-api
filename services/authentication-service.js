@@ -2,7 +2,10 @@ const path = require('path');
 const fs = require('fs');
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
-const { projectDir, baseUrlImage, saltRound } = require('../config');
+const nodemailer = require('nodemailer');
+const {
+  projectDir, baseUrlImage, saltRound, mailConfig, mailSender, baseUrl,
+} = require('../config');
 const { query } = require('../utils/db-helper');
 const { generateToken } = require('../utils/token-helper');
 
@@ -200,6 +203,64 @@ module.exports = {
           created_at: users[0].created_at,
           updated_at: users[0].updated_at,
         },
+      });
+    } catch (e) {
+      return res.status(500).json({
+        status: false,
+        message: `Failed to get user ${e.message}`,
+        data: null,
+      });
+    }
+  },
+  sendForgotPasswordToken: async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          status: false,
+          message: 'Failed to sign in',
+          data: errors.array(),
+        });
+      }
+
+      const { email } = req.body;
+
+      const users = await query('SELECT * FROM users WHERE email = ?', [email]);
+
+      if (users.length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: 'Failed to get user',
+          data: null,
+        });
+      }
+
+      const user = users[0];
+
+      const forgotToken = generateToken({ userID: user.id });
+
+      await query('UPDATE users SET forgot_token = ? WHERE id = ?', [forgotToken, user.id]);
+
+      const transporter = nodemailer.createTransport(mailConfig);
+      await transporter.sendMail({
+        from: mailSender,
+        to: user.email,
+        subject: 'Forgot Password',
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <p>Hello ${user.name}, I think you just request for changed your password. <br />
+              you can go to this <a href="${`${baseUrl}/reset-password?email=${email}&token=${forgotToken}`}">link</a>
+            </body>
+          </html>
+        `,
+      });
+
+      return res.status(200).json({
+        status: true,
+        message: 'Success send forgot password token',
+        data: null,
       });
     } catch (e) {
       return res.status(500).json({
